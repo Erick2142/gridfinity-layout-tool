@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { Button } from '@/design-system';
+import { SpacerPreview } from './SpacerPreview';
+import { useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n';
 import { ToolSwitcher } from '@/shared/components/ToolSwitcher';
 import { useResponsive } from '@/shared/hooks';
@@ -64,16 +66,20 @@ export default function SpacersPage() {
   const [custom, setCustom] = useState(false),
     [height, setHeight] = useState('1');
   const [feet, setFeet] = useState(true);
-  const spacer = {
-    width: Number(width),
-    depth: Number(depth),
-    lift: Number(height) * (custom ? 1 : HEIGHT_UNIT),
-    feet,
-  };
+  const spacer = useMemo(
+    () => ({
+      width: Number(width),
+      depth: Number(depth),
+      lift: Number(height) * (custom ? 1 : HEIGHT_UNIT),
+      feet,
+    }),
+    [width, depth, height, custom, feet]
+  );
   const valid = validSpacer(spacer) && (custom || Number.isInteger(Number(height)));
+  const mesh = useMemo(() => (valid ? spacerMesh(spacer) : null), [spacer, valid]);
   function download() {
-    if (!valid) return;
-    const { vertices, indices } = spacerMesh(spacer);
+    if (!mesh) return;
+    const { vertices, indices } = mesh;
     const name = `spacer-${width}x${depth}-${spacer.lift}mm-${feet ? 'feet' : 'flat'}`;
     triggerDownload(
       new Blob([buildSTLBufferFromIndexed(vertices, new Float32Array(), indices, name)], {
@@ -85,13 +91,18 @@ export default function SpacersPage() {
   const inputClass = 'block mt-1 rounded border border-stroke-subtle bg-surface px-3 py-2 w-full';
   return (
     <div className="flex h-dvh flex-col bg-surface text-content">
-      <header className="border-b border-stroke-subtle p-2">
+      <header className="h-12 shrink-0 flex items-center justify-between px-4 bg-surface-secondary border-b border-stroke-subtle">
         <ToolSwitcher compact={isMobile} iconOnly={isMobile} />
+        <Button variant="secondary" disabled={!valid} onClick={download}>
+          {t('spacers.download')}
+        </Button>
       </header>
-      <main className="overflow-auto p-5">
-        <h2 className="mb-5 text-xl font-semibold">{t('spacers.title')}</h2>
-        <div className="grid gap-8 md:grid-cols-[16rem_1fr]">
-          <div className="space-y-4">
+      <div className="flex flex-1 min-h-0 max-md:flex-col">
+        <aside className="w-72 shrink-0 overflow-y-auto border-r border-stroke-subtle bg-surface-secondary max-md:order-2 max-md:w-full max-md:flex-1">
+          <h2 className="border-b border-stroke-subtle px-4 py-3 font-semibold">
+            {t('spacers.title')}
+          </h2>
+          <div className="p-4 space-y-4 text-sm">
             {(
               [
                 [width, setWidth, 'spacers.width'],
@@ -145,30 +156,36 @@ export default function SpacersPage() {
                 <option value="flat">{t('spacers.flat')}</option>
               </select>
             </label>
-            <button
-              className="rounded bg-surface-elevated border border-stroke-subtle px-4 py-2 disabled:opacity-50"
-              disabled={!valid}
-              onClick={download}
-            >
-              {t('spacers.download')}
-            </button>
+
+            {valid && (
+              <details className="border-t border-stroke-subtle pt-3">
+                <summary className="cursor-pointer">{t('spacers.section')}</summary>
+                <SideSection {...spacer} />
+              </details>
+            )}
           </div>
-          {valid ? (
-            <figure className="my-auto max-w-3xl space-y-4">
-              <figcaption>
-                {t('spacers.section')} · {width} × {depth}
-              </figcaption>
-              <SideSection {...spacer} />
-              <p>
+        </aside>
+        <main className="relative min-w-0 flex-1 overflow-hidden max-md:flex-none max-md:h-[44dvh]">
+          {mesh ? (
+            <>
+              <SpacerPreview
+                mesh={mesh}
+                width={spacer.width}
+                depth={spacer.depth}
+                height={spacer.lift + pocketHeight}
+              />
+              <p className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-xs text-content-secondary shadow-sm">
                 {t('spacers.mm')}: {spacer.lift} mm · {t('spacers.height')}:{' '}
                 {Number((spacer.lift + pocketHeight).toFixed(4))} mm
               </p>
-            </figure>
+            </>
           ) : (
-            <p role="alert">{t('spacers.invalid')}</p>
+            <p role="alert" className="p-5">
+              {t('spacers.invalid')}
+            </p>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
