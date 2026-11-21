@@ -559,7 +559,8 @@ export function buildTopShape(
   cellMask?: CellMask,
   overhang?: ResolvedOverhang,
   lipTip: LipTipStyle = DEFAULT_LIP_TIP,
-  notches?: LipNotchGrid
+  notches?: LipNotchGrid,
+  thin = false
 ): Shape3D {
   const polygon = isPartialMask(cellMask);
   // Overhang is suppressed for polygon masks (the mask defines the footprint).
@@ -570,7 +571,7 @@ export function buildTopShape(
   // nor an overhung rim follows; `resolveLipNotches` keeps both off it.
   const notchGrid = notches && !polygon && !exp ? notches : undefined;
   const lipKey = buildCacheKey(
-    'v5',
+    thin ? 'thin-v1' : 'v5',
     quantize(gridW),
     quantize(gridD),
     quantize(pitch.x),
@@ -592,6 +593,53 @@ export function buildTopShape(
   const outerD = gridD * pitch.y - CLEARANCE + (exp?.addD ?? 0);
   const offX = exp?.offsetX ?? 0;
   const offY = exp?.offsetY ?? 0;
+
+  if (thin) {
+    // Measured straight-wall section of the 1x1x3 reference. Each row is
+    // [height above collar, inward offset from the bin's outside face].
+    const sections = [
+      [-LIP_OVERLAP, 1.2],
+      [0.045, 1.2],
+      [0.795, 1.95],
+      [2.595, 1.95],
+      [4.305, 0.24],
+      [LIP_HEIGHT, 0.1],
+    ] as const;
+    const outline = (inset: number) => {
+      if (polygon)
+        return inset
+          ? buildMaskDrawingInset(cellMask, gridUnitMm, inset)
+          : buildMaskDrawing(cellMask, gridUnitMm);
+      const r = safeSectionRect(outerW - 2 * inset, outerD - 2 * inset, BOX_CORNER_RADIUS - inset);
+      return translateDrawing(drawRoundedRectangle(r.width, r.depth, r.radius), offX, offY);
+    };
+    const loft = (profiles: Sketch[]) => profiles[0].loftWith(profiles.slice(1), { ruled: true });
+    const ring = withScope((scope: DisposalScope) => {
+      const tube = (drawing: Drawing) =>
+        scope.register(
+          loft([-LIP_OVERLAP, LIP_HEIGHT].map((z) => drawing.sketchOnPlane('XY', z) as Sketch))
+        );
+      const inner = scope.register(
+        loft(sections.map(([z, inset]) => outline(inset).sketchOnPlane('XY', z) as Sketch))
+      );
+      let solid = unwrap(cut(tube(outline(0)), inner));
+      if (polygon) {
+        const holes = buildMaskHoleDrawings(cellMask, gridUnitMm);
+        const rings = sections.map(([z, inset]) =>
+          buildMaskHoleDrawings(cellMask, gridUnitMm, CLEARANCE / 2 + inset).map(
+            (d) => d.sketchOnPlane('XY', z) as Sketch
+          )
+        );
+        holes.forEach((hole, index) => {
+          const outside = scope.register(loft(rings.map((row) => row[index])));
+          const rim = scope.register(unwrap(cut(outside, tube(hole))));
+          solid = unwrap(fuse(scope.register(solid), rim));
+        });
+      }
+      return solid;
+    });
+    return setLipCache(lipKey, ring);
+  }
 
   // Loft-cut for all kernels: produces analytic surfaces and avoids an OCCT
   // BRepOffsetAPI_MakePipeShell bug where the profile direction flips on

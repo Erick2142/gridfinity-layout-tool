@@ -119,6 +119,7 @@ export const BASE_CONFIG_KEYS = [
   'cornerHolesOnly',
   'screwDiameter',
   'stackingLip',
+  'rimProfile',
   'lipTip',
   'lipNotches',
   'rimFillet',

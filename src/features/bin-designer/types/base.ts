@@ -518,6 +518,7 @@ export interface BaseConfig {
    *
    * Inert while {@link stackingLip} is off: there is no peak to finish.
    */
+  readonly rimProfile?: 'thin' | 'none';
   readonly lipTip?: LipTipStyle;
   /**
    * A notch on the stacking lip at every internal grid line, so a smaller bin

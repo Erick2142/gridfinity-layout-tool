@@ -293,6 +293,30 @@ export function useBaseSection() {
     updateBase({ stackingLip: !base.stackingLip });
   }, [base.stackingLip, updateBase]);
 
+  const setRimProfile = useCallback(
+    (style: 'standard' | 'thin' | 'none' | 'off') => {
+      const { rimProfile: previous, ...rest } = params.base;
+      // The reference files carry 4.85 mm above nominal bin height. Reuse the
+      // existing collar so previews, split exports and height readouts agree.
+      const allowance = { thin: 0.45, none: 4.85, standard: 0, off: 0 };
+      const extra = Math.max(
+        0,
+        (params.extraWallHeightMm ?? 0) - allowance[previous ?? 'standard']
+      );
+      const collar = extra + allowance[style];
+      commit({
+        ...params,
+        extraWallHeightMm: collar || undefined,
+        base: {
+          ...rest,
+          stackingLip: style === 'standard' || style === 'thin',
+          ...(style === 'thin' || style === 'none' ? { rimProfile: style } : {}),
+        },
+      });
+    },
+    [params, commit]
+  );
+
   const setLipTip = useCallback(
     (tip: LipTipStyle) => {
       commit({ ...params, base: { ...params.base, lipTip: tip } });
@@ -637,6 +661,7 @@ export function useBaseSection() {
       toggleScrew,
       setCornerHolesOnly: holes.setCornerHolesOnly,
       toggleStackingLip,
+      setRimProfile,
       setLipTip,
       toggleLipNotches,
       toggleRimFillet,

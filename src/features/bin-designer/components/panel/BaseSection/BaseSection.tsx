@@ -179,13 +179,39 @@ export function BaseSection() {
         <SubHeader>{t('binDesigner.base.section.stacking')}</SubHeader>
         {/* Shares the assembled-height breakdown's noun (the same lip, named
             once) rather than duplicating the string across every locale. */}
-        <FeatureToggle
-          label={t('assembledHeight.stackingLip')}
-          checked={state.base.stackingLip}
-          onChange={handlers.toggleStackingLip}
-          info={t('binDesigner.base.stackingLip.hint')}
-          disabledReason={state.slanted ? t('binDesigner.slant.noStackingLip') : undefined}
-        />
+        {!state.slanted && !state.base.tile && (
+          <div className="space-y-1">
+            <FieldLabel>{t('binDesigner.base.rimProfile')}</FieldLabel>
+            <SegmentedControl
+              options={(['standard', 'thin', 'none', 'off'] as const).map((value) => ({
+                value,
+                label: t(`binDesigner.base.rimProfile.${value}`),
+              }))}
+              value={
+                state.base.stackingLip
+                  ? state.base.rimProfile === 'thin'
+                    ? 'thin'
+                    : 'standard'
+                  : state.base.rimProfile === 'none'
+                    ? 'none'
+                    : 'off'
+              }
+              onChange={handlers.setRimProfile}
+              aria-label={t('binDesigner.base.rimProfile')}
+              size="sm"
+              fullWidth
+            />
+          </div>
+        )}
+        {(state.slanted || state.base.tile) && (
+          <FeatureToggle
+            label={t('assembledHeight.stackingLip')}
+            checked={state.base.stackingLip}
+            onChange={handlers.toggleStackingLip}
+            info={t('binDesigner.base.stackingLip.hint')}
+            disabledReason={state.slanted ? t('binDesigner.slant.noStackingLip') : undefined}
+          />
+        )}
         {!state.base.stackingLip && (
           <FeatureToggle
             label={t('binDesigner.base.rimFillet')}
@@ -213,7 +239,7 @@ export function BaseSection() {
         {/* Only while there IS a lip. The finish is a property of its peak, and
             offering it on a lipless bin would be a control with nothing to act
             on. */}
-        {state.base.stackingLip && (
+        {state.base.stackingLip && state.base.rimProfile !== 'thin' && (
           <div className="space-y-1 pt-1">
             <FieldLabel
               info={
@@ -240,7 +266,7 @@ export function BaseSection() {
             />
           </div>
         )}
-        {state.base.stackingLip && (
+        {state.base.stackingLip && state.base.rimProfile !== 'thin' && (
           <FeatureToggle
             label={t('binDesigner.base.lipNotches')}
             checked={state.lipNotches}

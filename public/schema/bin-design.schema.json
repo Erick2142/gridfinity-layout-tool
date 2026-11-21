@@ -169,6 +169,7 @@
           "type": "boolean",
           "description": "Remove material to save filament."
         },
+        "rimProfile": { "enum": ["thin", "none"] },
         "lipTip": {
           "enum": ["sharp", "round", "chamfer", "flat"],
           "default": "sharp",

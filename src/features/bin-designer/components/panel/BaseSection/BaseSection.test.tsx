@@ -65,12 +65,30 @@ describe('BaseSection', () => {
     expect(screen.getByText(note)).toBeInTheDocument();
   });
 
+  it('switches reference profiles without accumulating collar height', async () => {
+    useDesignerStore.setState({ params: { ...DEFAULT_BIN_PARAMS, extraWallHeightMm: 2 } });
+    render(<BaseSection />);
+    const user = userEvent.setup();
+    for (const [name, collar, lip] of [
+      ['Thin', 2.45, true],
+      ['None (full height)', 6.85, false],
+      ['Standard', 2, true],
+    ] as const) {
+      await user.click(
+        within(screen.getByRole('radiogroup', { name: 'Lip style' })).getByRole('radio', { name })
+      );
+      const { params } = useDesignerStore.getState();
+      expect(params.extraWallHeightMm).toBeCloseTo(collar);
+      expect(params.base.stackingLip).toBe(lip);
+    }
+  });
+
   it('renders the base controls under them', () => {
     render(<BaseSection />);
 
     expect(screen.getByText('Magnet holes')).toBeInTheDocument();
     expect(screen.getByText('Screw holes')).toBeInTheDocument();
-    expect(screen.getByText('Stacking lip')).toBeInTheDocument();
+    expect(screen.getByText('Lip style')).toBeInTheDocument();
     expect(screen.getByText('Lightweight floor')).toBeInTheDocument();
   });
 
