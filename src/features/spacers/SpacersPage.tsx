@@ -1,8 +1,10 @@
+import { DEFAULT_BASEPLATE_PARAMS } from '@/core/baseplateDefaults';
+import { clearanceError, type Pocket } from './magnetPockets';
 import { FeatureToggle } from '@/shared/components/FeatureToggle';
 import { HeaderSupportLinks } from '@/shared/components/HeaderSupportLinks';
 import { Button, Stepper } from '@/design-system';
 import { SpacerPreview } from './SpacerPreview';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from '@/i18n';
 import { ToolSwitcher } from '@/shared/components/ToolSwitcher';
 import { useResponsive } from '@/shared/hooks';
@@ -84,8 +86,36 @@ export default function SpacersPage() {
     }),
     [width, depth, height, custom, feet, perimeter, undersideNotches, topNotches]
   );
-  const valid = validSpacer(spacer) && (custom || Number.isInteger(Number(height)));
-  const mesh = useMemo(() => (valid ? spacerMesh(spacer) : null), [spacer, valid]);
+  const defaultPocket: Pocket = {
+    enabled: false,
+    diameter: DEFAULT_BASEPLATE_PARAMS.magnetDiameter,
+    thickness: DEFAULT_BASEPLATE_PARAMS.magnetDepth,
+  };
+  const [top, setTop] = useState(defaultPocket),
+    [bottom, setBottom] = useState(defaultPocket);
+  const magnets = useMemo(() => ({ top, bottom }), [top, bottom]);
+  const magnetic = top.enabled || bottom.enabled;
+  const problem = clearanceError(spacer, magnets);
+  const valid = validSpacer(spacer) && (custom || Number.isInteger(Number(height))) && !problem;
+  const plain = useMemo(
+    () => (valid && !magnetic ? spacerMesh(spacer) : null),
+    [spacer, valid, magnetic]
+  );
+  const [result, setResult] = useState<{
+    spacer: Spacer;
+    magnets: typeof magnets;
+    mesh: ReturnType<typeof spacerMesh> | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!valid || !magnetic) return;
+    const worker = new Worker(new URL('./magnets.worker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (e) => setResult({ spacer, magnets, mesh: e.data });
+    worker.onerror = () => setResult({ spacer, magnets, mesh: null });
+    worker.postMessage({ spacer, magnets });
+    return () => worker.terminate();
+  }, [spacer, magnets, valid, magnetic]);
+  const current = result?.spacer === spacer && result.magnets === magnets ? result : null;
+  const mesh = magnetic ? (valid ? current?.mesh : null) : plain;
   function download() {
     if (!mesh) return;
     const { vertices, indices } = mesh;
@@ -99,7 +129,15 @@ export default function SpacersPage() {
       new Blob([buildSTLBufferFromIndexed(vertices, new Float32Array(), indices, name)], {
         type: 'model/stl',
       }),
-      [name, profile].filter(Boolean).join('-') + '.stl'
+      [
+        name,
+        profile,
+        ...(['top', 'bottom'] as const)
+          .filter((side) => magnets[side].enabled)
+          .map((side) => side + '-' + magnets[side].diameter + 'x' + magnets[side].thickness),
+      ]
+        .filter(Boolean)
+        .join('-') + '.stl'
     );
   }
   const inputClass = 'block mt-1 rounded border border-stroke-subtle bg-surface px-3 py-2 w-full';
@@ -111,7 +149,7 @@ export default function SpacersPage() {
           <Button
             variant="ghost"
             aria-label={t('spacers.download')}
-            disabled={!valid}
+            disabled={!mesh}
             onClick={download}
           >
             <svg
@@ -229,6 +267,57 @@ export default function SpacersPage() {
                 />
               </>
             )}
+            {(
+              [
+                [top, setTop, 'spacers.topMagnets'],
+                [bottom, setBottom, 'spacers.bottomMagnets'],
+              ] as const
+            ).map(([p, set, key]) => (
+              <FeatureToggle
+                key={key}
+                label={t(key)}
+                checked={p.enabled}
+                onChange={() => set({ ...p, enabled: !p.enabled })}
+                primaryControls={
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['diameter', 'thickness'] as const).map((field) => {
+                      const label = t(
+                        field === 'diameter'
+                          ? 'binDesigner.base.magnetDiameter'
+                          : 'spacers.magnetThickness'
+                      );
+                      return (
+                        <div key={field}>
+                          <span className="text-xs text-content-tertiary">{label} (mm)</span>
+                          <Stepper
+                            fullWidth
+                            aria-label={t(key) + ' ' + label}
+                            value={p[field]}
+                            min={0.5}
+                            max={field === 'diameter' ? 20 : 10}
+                            step={0.1}
+                            inputDecimals={2}
+                            onChange={(n) => set({ ...p, [field]: n })}
+                            onStep={(d) =>
+                              set({
+                                ...p,
+                                [field]: Math.max(
+                                  0.5,
+                                  Math.min(
+                                    field === 'diameter' ? 20 : 10,
+                                    Number((p[field] + 0.1 * d).toFixed(2))
+                                  )
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                }
+              />
+            ))}
             {valid && (
               <details className="border-t border-stroke-subtle pt-3">
                 <summary className="cursor-pointer">{t('spacers.section')}</summary>
@@ -253,7 +342,14 @@ export default function SpacersPage() {
             </>
           ) : (
             <p role="alert" className="p-5">
-              {t('spacers.invalid')}
+              {t(
+                problem ??
+                  (!valid
+                    ? 'spacers.invalid'
+                    : current
+                      ? 'binDesigner.preview.generationFailed'
+                      : 'common.loading')
+              )}
             </p>
           )}
         </main>
