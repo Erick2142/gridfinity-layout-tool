@@ -2,7 +2,7 @@ import { DEFAULT_BASEPLATE_PARAMS } from '@/core/baseplateDefaults';
 import { clearanceError, type Pocket } from './magnetPockets';
 import { FeatureToggle } from '@/shared/components/FeatureToggle';
 import { HeaderSupportLinks } from '@/shared/components/HeaderSupportLinks';
-import { Button, Stepper } from '@/design-system';
+import { Button, ProgressBar, Stepper } from '@/design-system';
 import { SpacerPreview } from './SpacerPreview';
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from '@/i18n';
@@ -112,10 +112,23 @@ export default function SpacersPage() {
     worker.onmessage = (e) => setResult({ spacer, magnets, mesh: e.data });
     worker.onerror = () => setResult({ spacer, magnets, mesh: null });
     worker.postMessage({ spacer, magnets });
-    return () => worker.terminate();
+    return () => {
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.terminate();
+    };
   }, [spacer, magnets, valid, magnetic]);
   const current = result?.spacer === spacer && result.magnets === magnets ? result : null;
   const mesh = magnetic ? (valid ? current?.mesh : null) : plain;
+  const loading = valid && magnetic && !current;
+  // Retain the dimensions with the mesh so a pending footprint change
+  // doesn't move the old model relative to the grid.
+  const [preview, setPreview] = useState<{
+    mesh: ReturnType<typeof spacerMesh>;
+    spacer: Spacer;
+  } | null>(null);
+  if (mesh && mesh !== preview?.mesh) setPreview({ mesh, spacer });
+  const displayed = preview?.spacer ?? spacer;
   function download() {
     if (!mesh) return;
     const { vertices, indices } = mesh;
@@ -333,30 +346,39 @@ export default function SpacersPage() {
         </aside>
         <main className="relative min-w-0 flex-1 overflow-hidden max-md:flex-none max-md:h-[44dvh]">
           <SpacerPreview
-            mesh={mesh ?? null}
-            width={spacer.width}
-            depth={spacer.depth}
-            height={spacer.lift + pocketHeight}
+            mesh={preview?.mesh ?? null}
+            width={displayed.width}
+            depth={displayed.depth}
+            height={displayed.lift + pocketHeight}
           />
+          {loading && (
+            <ProgressBar
+              size="sm"
+              label={t('common.loading')}
+              className="pointer-events-none absolute inset-x-0 bottom-0"
+            />
+          )}
           {mesh ? (
             <p className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-xs text-content-secondary shadow-sm">
               {t('spacers.mm')}: {spacer.lift} mm · {t('spacers.height')}:{' '}
               {Number((spacer.lift + pocketHeight).toFixed(4))} mm
             </p>
           ) : (
-            <p
-              role="alert"
-              className="absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-sm"
-            >
-              {t(
-                problem ??
-                  (!valid
-                    ? 'spacers.invalid'
-                    : current
-                      ? 'binDesigner.preview.generationFailed'
-                      : 'common.loading')
-              )}
-            </p>
+            !loading && (
+              <p
+                role="alert"
+                className="absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-sm"
+              >
+                {t(
+                  problem ??
+                    (!valid
+                      ? 'spacers.invalid'
+                      : current
+                        ? 'binDesigner.preview.generationFailed'
+                        : 'common.loading')
+                )}
+              </p>
+            )
           )}
         </main>
       </div>
