@@ -25,14 +25,14 @@ import {
   withScope,
 } from 'brepjs';
 import type { DisposalScope, Edge, Shape3D, ValidSolid } from 'brepjs';
-import { isNestingBase } from '@/shared/types/bin';
+import { isNestingBase, resolveLipTip, LIP_TIP_FLAT_MM } from '@/shared/types/bin';
 import { isPartialMask } from '@/shared/utils/cellMask';
 import { interiorFilletRadiusMm } from '@/shared/utils/interiorFillet';
 import { slottedFilletApplies, slottedFilletRequestMm } from '@/shared/utils/slottedFillet';
 import type { SlottedCavity } from '@/shared/utils/slottedFillet';
 import { effectiveRimFilletRadius } from '@/shared/utils/rimFillet';
 import type { BinParams } from '@/shared/types/bin';
-import { COPLANAR_MARGIN } from './generatorConstants';
+import { COPLANAR_MARGIN, LIP_HEIGHT } from './generatorConstants';
 import { planInteriorFillets } from './interiorFilletPlan';
 import type { CompartmentFilletPlan } from './interiorFilletPlan';
 import {
@@ -151,6 +151,49 @@ export function interiorFilletFloorFootprints(
   return out;
 }
 
+/** Continue only corners between two outside walls above the compartment.
+ * A divider can stop lower, and its corners must stop with it.
+ */
+function extendPlainRimCorners(
+  scope: DisposalScope,
+  plan: CompartmentFilletPlan,
+  params: BinParams,
+  dim: BinDimensions,
+  pieces: Shape3D[],
+  peak: number
+): void {
+  const mask = isPartialMask(params.cellMask);
+  for (const [i, corner] of plan.top.entries()) {
+    if (!corner.convex) continue;
+    const perimeter =
+      mask ||
+      (Math.abs(Math.abs(corner.x) - dim.innerW / 2) < EDGE_TOL_MM &&
+        Math.abs(Math.abs(corner.y) - dim.innerD / 2) < EDGE_TOL_MM);
+    if (!perimeter || plan.cornerRadius <= corner.bodyRadius + EDGE_TOL_MM) continue;
+    const prev = plan.top[(i + plan.top.length - 1) % plan.top.length];
+    const next = plan.top[(i + 1) % plan.top.length];
+    // The two exterior walls meet at a right angle, including on a cell mask.
+    const u = [Math.sign(prev.x - corner.x), Math.sign(prev.y - corner.y)];
+    const v = [Math.sign(next.x - corner.x), Math.sign(next.y - corner.y)];
+    const at = (x: number, y: number): [number, number] => [
+      corner.x + x * u[0] + y * v[0],
+      corner.y + x * u[1] + y * v[1],
+    ];
+    const r = plan.cornerRadius;
+    const base = Math.max(0, corner.bodyRadius - EDGE_TOL_MM);
+    const mid = 1 - Math.SQRT1_2;
+    let section = draw(at(base, 0))
+      .lineTo(at(r, 0))
+      .threePointsArcTo(at(0, r), at(mid * r, mid * r));
+    if (base > 0)
+      section = section
+        .lineTo(at(0, base))
+        .threePointsArcTo(at(base, 0), at(mid * base, mid * base));
+    const start = plan.zTop - EDGE_TOL_MM;
+    pieces.push(scope.register(sketch(section.close(), 'XY', start).extrude(peak - start)));
+  }
+}
+
 /**
  * The fillet solid for every compartment, fused with the scoop ramps it climbs,
  * or null when there is neither.
@@ -177,7 +220,14 @@ export function buildInteriorFillet(input: InteriorFilletBuild): Shape3D | null 
     // Ramps this feature took over but does not round, built as the scoop
     // feature would have.
     const asBuilt: Shape3D[] = [];
+    const plainRim = dim.hasLip && params.base.rimProfile === 'none';
+    const peak =
+      dim.wallHeight +
+      dim.collarHeight +
+      LIP_HEIGHT -
+      (resolveLipTip(params.base) === 'flat' ? LIP_TIP_FLAT_MM : 0);
     for (const plan of plans) {
+      if (plainRim) extendPlainRimCorners(scope, plan, params, dim, pieces, peak);
       const ramps = climbed.get(plan.id);
       climbed.delete(plan.id);
       const rounded = ramps
@@ -215,11 +265,17 @@ export function buildInteriorFillet(input: InteriorFilletBuild): Shape3D | null 
     // Each trim keeps the fillet out of somewhere it must not reach, so a
     // fillet one of them fails on is left out rather than built through it,
     // keeping only the ramps it took over from the scoop feature.
-    const tapered = clipToTaper(scope, fused, params, dim, pen);
+    const tapered = clipToTaper(scope, fused, params, dim, pen, plainRim ? peak : dim.wallHeight);
     const holed = tapered && clearMaskHoles(scope, tapered, params, dim);
     const doorways = holed && trimDoorways(scope, holed, params, dim, plans);
     const trimmed =
-      (doorways && clearLabelTabKeepouts(scope, doorways, labelTabKeepouts(params, dim), dim)) ??
+      (doorways &&
+        clearLabelTabKeepouts(
+          scope,
+          doorways,
+          labelTabKeepouts(params, dim),
+          plainRim ? peak : dim.wallHeight
+        )) ??
       fuseScoopRamps(
         scope,
         params,
@@ -284,7 +340,8 @@ function clipToTaper(
   solid: Shape3D,
   params: BinParams,
   dim: BinDimensions,
-  pen: number
+  pen: number,
+  top: number
 ): Shape3D | null {
   const taper: ResolvedTaper | null = dim.overhang.taper;
   if (!taper) return solid;
@@ -296,7 +353,7 @@ function clipToTaper(
         dim.wallHeight,
         params.wallThickness,
         taper,
-        dim.wallHeight + 2,
+        top + 2,
         0,
         0,
         pen
@@ -382,7 +439,7 @@ function clearLabelTabKeepouts(
   scope: DisposalScope,
   solid: Shape3D,
   keepouts: readonly LabelSocketKeepout[],
-  dim: BinDimensions
+  top: number
 ): Shape3D | null {
   let result = solid;
   try {
@@ -393,7 +450,7 @@ function clearLabelTabKeepouts(
         .lineTo([k.x0, k.y1])
         .close();
       const tool = scope.register(
-        sketch(outline, 'XY', k.z0).extrude(dim.wallHeight + CUTTER_OVERSHOOT_MM - k.z0)
+        sketch(outline, 'XY', k.z0).extrude(top + CUTTER_OVERSHOOT_MM - k.z0)
       );
       result = scope.register(unwrap(cut(result as ValidSolid, tool as ValidSolid)));
     }

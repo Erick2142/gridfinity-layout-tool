@@ -63,3 +63,30 @@ it.each(['thin', 'none'] as const)('exports all four peak finishes on %s', async
   expect(edgeHeights[0]).toBeGreaterThan(edgeHeights[1]);
   expect(edgeHeights[1]).toBeGreaterThan(edgeHeights[2] + 0.05);
 });
+
+it.each(['sharp', 'round', 'chamfer', 'flat'] as const)(
+  'continues the interior corner to the %s plain rim',
+  async (lipTip) => {
+    const { generateBin } = await import('./binOrchestrator');
+    const mesh = generateBin(
+      {
+        ...DEFAULT_BIN_PARAMS,
+        width: 1,
+        depth: 1,
+        height: 3,
+        wallThickness: 1.2,
+        extraWallHeightMm: 1.45,
+        interiorFilletMm: 7,
+        base: { ...DEFAULT_BIN_PARAMS.base, stackingLip: true, rimProfile: 'none', lipTip },
+      },
+      undefined,
+      true
+    );
+    const bounds = boundingBox(mesh.vertices);
+    // This column falls inside a 7 mm corner fillet, clear of the straight wall.
+    const spans = verticalSolidSpans(mesh, bounds.maxX - 2.6, bounds.maxY - 2.55);
+    expect(spans.some(([lo, hi]) => lo < 20 && hi > bounds.maxZ - 0.05)).toBe(true);
+    const air = verticalSolidSpans(mesh, bounds.maxX - 4, bounds.maxY - 4);
+    expect(air.some(([, hi]) => hi > 20)).toBe(false);
+  }
+);
