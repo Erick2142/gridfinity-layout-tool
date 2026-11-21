@@ -19,7 +19,7 @@ import {
 import { buildSTLBufferFromIndexed } from '@/features/generation/export/stlExporter';
 import { spacerMesh, validSpacer, pocketHeight, type Spacer } from './mesh';
 
-function SideSection({ width, lift, feet }: Spacer) {
+function SideSection({ width, lift, feet, perimeter }: Spacer) {
   const h = lift + pocketHeight;
   return (
     <svg
@@ -29,6 +29,7 @@ function SideSection({ width, lift, feet }: Spacer) {
     >
       {Array.from({ length: width }, (_, i) =>
         [false, true].map((right) => {
+          if (perimeter && (right ? i !== width - 1 : i !== 0)) return null;
           const edge = (!right && i === 0) || (right && i === width - 1) ? CLEARANCE / 2 : 0;
           const points = [
             [6, 0],
@@ -68,14 +69,20 @@ export default function SpacersPage() {
   const [custom, setCustom] = useState(false),
     [height, setHeight] = useState('1');
   const [feet, setFeet] = useState(true);
+  const [perimeter, setPerimeter] = useState(false);
+  const [undersideNotches, setUndersideNotches] = useState(false);
+  const [topNotches, setTopNotches] = useState(false);
   const spacer = useMemo(
     () => ({
       width: Number(width),
       depth: Number(depth),
       lift: Number(height) * (custom ? 1 : HEIGHT_UNIT),
       feet,
+      perimeter,
+      undersideNotches,
+      topNotches,
     }),
-    [width, depth, height, custom, feet]
+    [width, depth, height, custom, feet, perimeter, undersideNotches, topNotches]
   );
   const valid = validSpacer(spacer) && (custom || Number.isInteger(Number(height)));
   const mesh = useMemo(() => (valid ? spacerMesh(spacer) : null), [spacer, valid]);
@@ -83,11 +90,16 @@ export default function SpacersPage() {
     if (!mesh) return;
     const { vertices, indices } = mesh;
     const name = `spacer-${width}x${depth}-${spacer.lift}mm-${feet ? 'feet' : 'flat'}`;
+    const profile = perimeter
+      ? ['perimeter', undersideNotches ? 'underside-notches' : '', topNotches ? 'top-notches' : '']
+          .filter(Boolean)
+          .join('-')
+      : '';
     triggerDownload(
       new Blob([buildSTLBufferFromIndexed(vertices, new Float32Array(), indices, name)], {
         type: 'model/stl',
       }),
-      name + '.stl'
+      [name, profile].filter(Boolean).join('-') + '.stl'
     );
   }
   const inputClass = 'block mt-1 rounded border border-stroke-subtle bg-surface px-3 py-2 w-full';
@@ -198,6 +210,25 @@ export default function SpacersPage() {
               </select>
             </label>
 
+            <FeatureToggle
+              label={t('spacers.perimeter')}
+              checked={perimeter}
+              onChange={() => setPerimeter(!perimeter)}
+            />
+            {perimeter && (
+              <>
+                <FeatureToggle
+                  label={t('spacers.undersideNotches')}
+                  checked={undersideNotches}
+                  onChange={() => setUndersideNotches(!undersideNotches)}
+                />
+                <FeatureToggle
+                  label={t('spacers.topNotches')}
+                  checked={topNotches}
+                  onChange={() => setTopNotches(!topNotches)}
+                />
+              </>
+            )}
             {valid && (
               <details className="border-t border-stroke-subtle pt-3">
                 <summary className="cursor-pointer">{t('spacers.section')}</summary>
