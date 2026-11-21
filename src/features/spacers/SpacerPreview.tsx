@@ -1,5 +1,12 @@
 import { useLayoutEffect, useState, useRef } from 'react';
-import { Vector3 } from 'three';
+import { Vector3, PerspectiveCamera, OrthographicCamera } from 'three';
+import type { OrbitControls as Orbit } from 'three-stdlib';
+import { useMeshGeometry } from '@/shared/components/preview/useMeshGeometry';
+import {
+  EDGE_MATERIAL_PROPS,
+  MESH_MATERIAL_PROPS,
+} from '@/features/baseplate/components/BaseplatePreview/materialProps';
+import { frameSpacer } from './frameSpacer';
 import { BaseplatePreviewControls } from '@/features/baseplate/components/BaseplatePreview/BaseplatePreviewControls';
 import {
   CAMERA_PRESETS,
@@ -8,7 +15,7 @@ import {
 import { CameraRig, type Projection } from '@/shared/components/preview/CameraRig';
 import { useBaseplateKeyboard } from '@/features/baseplate/hooks/useBaseplateKeyboard';
 import { Canvas, useThree } from '@react-three/fiber';
-import { Bounds, OrbitControls, useBounds } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useSettingsStore } from '@/core/store';
 import { GradientBackground } from '@/shared/components/preview/GradientBackground';
 import { FootprintGrid } from '@/shared/components/preview/FootprintGrid';
@@ -24,38 +31,69 @@ interface Props {
   height: number;
 }
 
-function PresetController({
-  apply,
-}: {
-  apply: React.RefObject<((preset: CameraPreset) => void) | null>;
-}) {
-  const bounds = useBounds();
-  const camera = useThree((s) => s.camera);
+function SpacerCamera({
+  width,
+  depth,
+  height,
+  request,
+}: Omit<Props, 'mesh'> & { request: { preset: CameraPreset } }) {
+  const { camera, controls, size, invalidate } = useThree();
+  const previous = useRef<{
+    request: typeof request;
+    dimensions: string;
+    camera: PerspectiveCamera | OrthographicCamera;
+  } | null>(null);
   useLayoutEffect(() => {
-    apply.current = (preset) => {
-      const { center, distance } = bounds.refresh().getSize();
-      const eye = new Vector3(...CAMERA_PRESETS[preset])
-        .normalize()
-        .multiplyScalar(distance)
-        .add(center);
-      bounds.moveTo(eye).lookAt({ target: center });
-      if (camera.type === 'OrthographicCamera') bounds.fit();
-    };
-    return () => {
-      apply.current = null;
-    };
-  }, [apply, bounds, camera]);
+    const orbit = controls as Orbit | null;
+    if (
+      !orbit ||
+      orbit.object !== camera ||
+      !(camera instanceof PerspectiveCamera || camera instanceof OrthographicCamera) ||
+      !size.width ||
+      !size.height
+    )
+      return;
+    const dimensions = [width, depth, height, size.width, size.height].join(',');
+    const last = previous.current;
+    if (
+      last?.request === request &&
+      last.dimensions === dimensions &&
+      (last.camera === camera || last.camera.type !== camera.type)
+    ) {
+      previous.current = { request, dimensions, camera };
+      return;
+    }
+    const direction =
+      previous.current?.request === request && previous.current.camera === camera
+        ? camera.position.clone().sub(orbit.target)
+        : new Vector3(...CAMERA_PRESETS[request.preset]);
+    const target = frameSpacer(
+      camera,
+      [width * SIZE, depth * SIZE, height],
+      direction,
+      size.width / size.height
+    );
+    orbit.target.copy(target);
+    orbit.update();
+    previous.current = { request, dimensions, camera };
+    invalidate();
+  }, [camera, controls, size.width, size.height, width, depth, height, request, invalidate]);
   return null;
 }
 export function SpacerPreview({ mesh, width, depth, height }: Props) {
   const color = useSettingsStore((s) => s.settings.baseplateFilamentColor);
-  const [active, setActive] = useState<CameraPreset | null>(null);
+  const [active, setActive] = useState<CameraPreset | null>('isometric');
   const [projection, setProjection] = useState<Projection>('perspective');
   const [xray, setXray] = useState(false);
   const [selectedColor, setColor] = useState(color);
-  const apply = useRef<((preset: CameraPreset) => void) | null>(null);
+  const [request, setRequest] = useState<{ preset: CameraPreset }>({ preset: 'isometric' });
+  const { geometry, edgesGeometry } = useMeshGeometry({
+    ...mesh,
+    normals: null,
+    edgeVertices: null,
+  });
   function preset(view: CameraPreset) {
-    apply.current?.(view);
+    setRequest({ preset: view });
     setActive(view);
   }
   const toggleProjection = () =>
@@ -73,31 +111,38 @@ export function SpacerPreview({ mesh, width, depth, height }: Props) {
         />
         <GradientBackground />
         <SceneLighting />
-        <OrbitControls makeDefault enableDamping onStart={() => setActive(null)} />
-        <Bounds
-          key={width + 'x' + depth + 'x' + height}
-          fit
-          clip
-          observe
-          margin={1.25}
-          maxDuration={0}
-        >
-          <PresetController apply={apply} />
-          <mesh position={[(-width * SIZE) / 2, (-depth * SIZE) / 2, 0]}>
-            <bufferGeometry>
-              <bufferAttribute attach="attributes-position" args={[mesh.vertices, 3]} />
-              <bufferAttribute attach="index" args={[mesh.indices, 1]} />
-            </bufferGeometry>
-            <meshStandardMaterial
-              color={selectedColor}
-              transparent={xray}
-              opacity={xray ? 0.32 : 1}
-              depthWrite={!xray}
-              flatShading
-              roughness={0.7}
-            />
-          </mesh>
-        </Bounds>
+        <OrbitControls
+          target={[0, 0, height / 2]}
+          makeDefault
+          enableDamping
+          onStart={() => setActive(null)}
+        />
+        <SpacerCamera width={width} depth={depth} height={height} request={request} />
+        <group position={[(-width * SIZE) / 2, (-depth * SIZE) / 2, 0.1]}>
+          {geometry && (
+            <mesh geometry={geometry}>
+              <meshStandardMaterial
+                key={xray ? 'transparent' : 'solid'}
+                {...MESH_MATERIAL_PROPS}
+                color={selectedColor}
+                emissive={selectedColor}
+                flatShading
+                transparent={xray}
+                opacity={xray ? 0.3 : 1}
+                depthWrite={!xray}
+              />
+            </mesh>
+          )}
+          {edgesGeometry && (
+            <lineSegments geometry={edgesGeometry} renderOrder={1}>
+              <lineBasicMaterial
+                {...EDGE_MATERIAL_PROPS}
+                transparent={xray}
+                opacity={xray ? 0.65 : 1}
+              />
+            </lineSegments>
+          )}
+        </group>
         <FootprintGrid width={width} depth={depth} />
       </Canvas>
       <BaseplatePreviewControls
