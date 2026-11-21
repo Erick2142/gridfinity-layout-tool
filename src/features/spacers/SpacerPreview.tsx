@@ -25,7 +25,7 @@ import { SIZE } from '@/shared/generation/generatorConstants';
 import type { spacerMesh } from './mesh';
 
 interface Props {
-  mesh: ReturnType<typeof spacerMesh>;
+  mesh: ReturnType<typeof spacerMesh> | null;
   width: number;
   depth: number;
   height: number;
@@ -53,7 +53,7 @@ function SpacerCamera({
       !size.height
     )
       return;
-    const dimensions = [width, depth, height, size.width, size.height].join(',');
+    const dimensions = [size.width, size.height].join(',');
     const last = previous.current;
     if (
       last?.request === request &&
@@ -81,6 +81,7 @@ function SpacerCamera({
   return null;
 }
 export function SpacerPreview({ mesh, width, depth, height }: Props) {
+  const [initialTarget] = useState<[number, number, number]>(() => [0, 0, height / 2]);
   const color = useSettingsStore((s) => s.settings.baseplateFilamentColor);
   const [active, setActive] = useState<CameraPreset | null>('isometric');
   const [projection, setProjection] = useState<Projection>('perspective');
@@ -88,7 +89,8 @@ export function SpacerPreview({ mesh, width, depth, height }: Props) {
   const [selectedColor, setColor] = useState(color);
   const [request, setRequest] = useState<{ preset: CameraPreset }>({ preset: 'isometric' });
   const { geometry, edgesGeometry } = useMeshGeometry({
-    ...mesh,
+    vertices: mesh?.vertices ?? null,
+    indices: mesh?.indices ?? null,
     normals: null,
     edgeVertices: null,
   });
@@ -107,12 +109,12 @@ export function SpacerPreview({ mesh, width, depth, height }: Props) {
         <CameraRig
           projection={projection}
           initialPosition={[100, -120, 95]}
-          target={[0, 0, height / 2]}
+          target={initialTarget}
         />
         <GradientBackground />
         <SceneLighting />
         <OrbitControls
-          target={[0, 0, height / 2]}
+          target={initialTarget}
           makeDefault
           enableDamping
           onStart={() => setActive(null)}

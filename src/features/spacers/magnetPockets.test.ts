@@ -31,6 +31,8 @@ for (const perimeter of [false, true])
           solid.rayCast([x, y, -1], [x, y, 12]).map((h) => h.position[2]);
         expect(heights(8.1, 8.1)).toEqual([2.5, 5]);
         expect(heights(10.8, 8.1)).toEqual([0, 5]);
+        // Inside the reinforced pad, over 1 mm beyond the top bore radius.
+        expect(heights(11.2, 11.2)).toEqual([0, 7]);
         if (perimeter) expect(heights(42, 42)).toEqual([]);
       } finally {
         solid.delete();

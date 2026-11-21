@@ -267,57 +267,62 @@ export default function SpacersPage() {
                 />
               </>
             )}
-            {(
-              [
-                [top, setTop, 'spacers.topMagnets'],
-                [bottom, setBottom, 'spacers.bottomMagnets'],
-              ] as const
-            ).map(([p, set, key]) => (
-              <FeatureToggle
-                key={key}
-                label={t(key)}
-                checked={p.enabled}
-                onChange={() => set({ ...p, enabled: !p.enabled })}
-                primaryControls={
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['diameter', 'thickness'] as const).map((field) => {
-                      const label = t(
-                        field === 'diameter'
-                          ? 'binDesigner.base.magnetDiameter'
-                          : 'spacers.magnetThickness'
-                      );
-                      return (
-                        <div key={field}>
-                          <span className="text-xs text-content-tertiary">{label} (mm)</span>
-                          <Stepper
-                            fullWidth
-                            aria-label={t(key) + ' ' + label}
-                            value={p[field]}
-                            min={0.5}
-                            max={field === 'diameter' ? 20 : 10}
-                            step={0.1}
-                            inputDecimals={2}
-                            onChange={(n) => set({ ...p, [field]: n })}
-                            onStep={(d) =>
-                              set({
-                                ...p,
-                                [field]: Math.max(
-                                  0.5,
-                                  Math.min(
-                                    field === 'diameter' ? 20 : 10,
-                                    Number((p[field] + 0.1 * d).toFixed(2))
-                                  )
-                                ),
-                              })
-                            }
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                }
-              />
-            ))}
+            <details className="border-t border-stroke-subtle pt-3">
+              <summary className="cursor-pointer font-medium">{t('baseplate.magnetHoles')}</summary>
+              <div className="mt-3 space-y-3">
+                {(
+                  [
+                    [top, setTop, 'spacers.topMagnets'],
+                    [bottom, setBottom, 'spacers.bottomMagnets'],
+                  ] as const
+                ).map(([p, set, key]) => (
+                  <FeatureToggle
+                    key={key}
+                    label={t(key)}
+                    checked={p.enabled}
+                    onChange={() => set({ ...p, enabled: !p.enabled })}
+                    primaryControls={
+                      <div className="grid grid-cols-2 gap-3">
+                        {(['diameter', 'thickness'] as const).map((field) => {
+                          const label = t(
+                            field === 'diameter'
+                              ? 'binDesigner.base.magnetDiameter'
+                              : 'spacers.magnetThickness'
+                          );
+                          return (
+                            <div key={field}>
+                              <span className="text-xs text-content-tertiary">{label} (mm)</span>
+                              <Stepper
+                                fullWidth
+                                aria-label={t(key) + ' ' + label}
+                                value={p[field]}
+                                min={0.5}
+                                max={field === 'diameter' ? 20 : 10}
+                                step={0.1}
+                                inputDecimals={2}
+                                onChange={(n) => set({ ...p, [field]: n })}
+                                onStep={(d) =>
+                                  set({
+                                    ...p,
+                                    [field]: Math.max(
+                                      0.5,
+                                      Math.min(
+                                        field === 'diameter' ? 20 : 10,
+                                        Number((p[field] + 0.1 * d).toFixed(2))
+                                      )
+                                    ),
+                                  })
+                                }
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    }
+                  />
+                ))}
+              </div>
+            </details>
             {valid && (
               <details className="border-t border-stroke-subtle pt-3">
                 <summary className="cursor-pointer">{t('spacers.section')}</summary>
@@ -327,21 +332,22 @@ export default function SpacersPage() {
           </div>
         </aside>
         <main className="relative min-w-0 flex-1 overflow-hidden max-md:flex-none max-md:h-[44dvh]">
+          <SpacerPreview
+            mesh={mesh ?? null}
+            width={spacer.width}
+            depth={spacer.depth}
+            height={spacer.lift + pocketHeight}
+          />
           {mesh ? (
-            <>
-              <SpacerPreview
-                mesh={mesh}
-                width={spacer.width}
-                depth={spacer.depth}
-                height={spacer.lift + pocketHeight}
-              />
-              <p className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-xs text-content-secondary shadow-sm">
-                {t('spacers.mm')}: {spacer.lift} mm · {t('spacers.height')}:{' '}
-                {Number((spacer.lift + pocketHeight).toFixed(4))} mm
-              </p>
-            </>
+            <p className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-xs text-content-secondary shadow-sm">
+              {t('spacers.mm')}: {spacer.lift} mm · {t('spacers.height')}:{' '}
+              {Number((spacer.lift + pocketHeight).toFixed(4))} mm
+            </p>
           ) : (
-            <p role="alert" className="p-5">
+            <p
+              role="alert"
+              className="absolute bottom-3 left-3 rounded-md bg-surface-secondary px-3 py-2 text-sm"
+            >
               {t(
                 problem ??
                   (!valid

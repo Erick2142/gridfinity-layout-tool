@@ -9,6 +9,8 @@ import {
 } from '@/shared/generation/generatorConstants';
 import { spacerMesh, type Spacer } from './mesh';
 
+const MAGNET_WALL = 1.5;
+
 export interface Pocket {
   enabled: boolean;
   diameter: number;
@@ -21,7 +23,7 @@ export interface Magnets {
 
 export function clearanceError(s: Spacer, { top, bottom }: Magnets) {
   const inset = Math.max(POCKET_INSET_BOT, s.feet ? CLEARANCE / 2 + FOOT_INSET_BOT : CLEARANCE / 2);
-  const maxDiameter = 2 * (SIZE / 2 - HOLE_OFFSET - inset - MAGNET_FLOOR);
+  const maxDiameter = 2 * (SIZE / 2 - HOLE_OFFSET - inset - MAGNET_WALL);
   const active = [top, bottom].filter((p) => p.enabled);
   if (
     active.some((p) => !Number.isFinite(p.diameter) || p.diameter <= 0 || p.diameter > maxDiameter)
@@ -55,7 +57,7 @@ export function magneticSpacerMesh(module: ManifoldToplevel, s: Spacer, m: Magne
       cuts: Manifold[] = [];
     const padRadius = Math.max(
       3,
-      ...[m.top, m.bottom].filter((p) => p.enabled).map((p) => p.diameter / 2 + MAGNET_FLOOR)
+      ...[m.top, m.bottom].filter((p) => p.enabled).map((p) => p.diameter / 2 + MAGNET_WALL)
     );
     const pad = own(module.Manifold.cylinder(s.lift, padRadius, padRadius, 64));
     const cutters = [m.top, m.bottom].map((p) =>

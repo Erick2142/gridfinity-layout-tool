@@ -2022,7 +2022,7 @@ const en: Record<string, string> = {
   'spacers.topMagnets': 'Top magnet holes',
   'spacers.bottomMagnets': 'Bottom magnet holes',
   'spacers.magnetThickness': 'Magnet thickness',
-  'spacers.magnetWall': 'Reduce the magnet diameter to leave at least 0.5 mm of material around the hole.',
+  'spacers.magnetWall': 'Reduce the magnet diameter to leave at least 1.5 mm of material around the hole.',
   'spacers.magnetFloor': 'Increase lift or reduce magnet thickness to leave at least 0.5 mm of material between the pocket and the opposite face or pocket.',
   'spacers.width': 'Width (cells)',
   'spacers.depth': 'Depth (cells)',

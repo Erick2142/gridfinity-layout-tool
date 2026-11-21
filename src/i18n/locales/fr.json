@@ -5117,7 +5117,7 @@
   "spacers.topMagnets": "Logements pour aimants du dessus",
   "spacers.bottomMagnets": "Logements pour aimants du dessous",
   "spacers.magnetThickness": "Épaisseur de l’aimant",
-  "spacers.magnetWall": "Réduisez le diamètre pour conserver au moins 0,5 mm de paroi.",
+  "spacers.magnetWall": "Réduisez le diamètre pour conserver au moins 1,5 mm de paroi.",
   "spacers.magnetFloor": "Augmentez le rehaussement ou réduisez l’épaisseur des aimants pour conserver au moins 0,5 mm de fond.",
   "spacers.width": "Largeur (cases)",
   "spacers.depth": "Profondeur (cases)",
