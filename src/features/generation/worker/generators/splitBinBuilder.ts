@@ -253,7 +253,8 @@ function splitSolidIntoPieces(
       splitDims.lipNotches
         ? { fractionalEdgeX: params.fractionalEdgeX, fractionalEdgeY: params.fractionalEdgeY }
         : undefined,
-      params.base.rimProfile === 'thin'
+      params.base.rimProfile,
+      params.wallThickness
     );
     // The same plane `shellStage` seats an unsplit bin's lip on, so the
     // piece's rim lands where the whole bin's does. `buildTopShape` carries its

@@ -4509,7 +4509,7 @@ const en: Record<string, string> = {
   'binDesigner.base.rimProfile.standard': 'Standard',
   'binDesigner.base.rimProfile.thin': 'Thin',
   'binDesigner.base.rimProfile.none': 'None (full height)',
-  'binDesigner.base.rimProfile.off': 'Off (short)',
+  'binDesigner.base.rimProfile.notches': 'Requires the Standard lip profile.',
   'binDesigner.base.lipTip': 'Lip peak',
   'binDesigner.base.lipTip.sharp': 'Sharp',
   'binDesigner.base.lipTip.round': 'Rounded',

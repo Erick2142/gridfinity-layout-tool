@@ -179,39 +179,69 @@ export function BaseSection() {
         <SubHeader>{t('binDesigner.base.section.stacking')}</SubHeader>
         {/* Shares the assembled-height breakdown's noun (the same lip, named
             once) rather than duplicating the string across every locale. */}
-        {!state.slanted && !state.base.tile && (
-          <div className="space-y-1">
-            <FieldLabel>{t('binDesigner.base.rimProfile')}</FieldLabel>
-            <SegmentedControl
-              options={(['standard', 'thin', 'none', 'off'] as const).map((value) => ({
-                value,
-                label: t(`binDesigner.base.rimProfile.${value}`),
-              }))}
-              value={
-                state.base.stackingLip
-                  ? state.base.rimProfile === 'thin'
-                    ? 'thin'
-                    : 'standard'
-                  : state.base.rimProfile === 'none'
-                    ? 'none'
-                    : 'off'
-              }
-              onChange={handlers.setRimProfile}
-              aria-label={t('binDesigner.base.rimProfile')}
-              size="sm"
-              fullWidth
-            />
-          </div>
-        )}
-        {(state.slanted || state.base.tile) && (
-          <FeatureToggle
-            label={t('assembledHeight.stackingLip')}
-            checked={state.base.stackingLip}
-            onChange={handlers.toggleStackingLip}
-            info={t('binDesigner.base.stackingLip.hint')}
-            disabledReason={state.slanted ? t('binDesigner.slant.noStackingLip') : undefined}
-          />
-        )}
+        <FeatureToggle
+          label={t('assembledHeight.stackingLip')}
+          checked={state.base.stackingLip}
+          onChange={handlers.toggleStackingLip}
+          info={t('binDesigner.base.stackingLip.hint')}
+          disabledReason={state.slanted ? t('binDesigner.slant.noStackingLip') : undefined}
+          primaryControls={
+            <>
+              <div className="space-y-1">
+                <FieldLabel>{t('binDesigner.base.rimProfile')}</FieldLabel>
+                <SegmentedControl
+                  options={(['standard', 'thin', 'none'] as const).map((value) => ({
+                    value,
+                    label: t(`binDesigner.base.rimProfile.${value}`),
+                  }))}
+                  value={state.base.rimProfile ?? 'standard'}
+                  onChange={handlers.setRimProfile}
+                  aria-label={t('binDesigner.base.rimProfile')}
+                  size="sm"
+                  fullWidth
+                />
+              </div>
+              <div className="space-y-1 pt-1">
+                <FieldLabel
+                  info={
+                    <OptionNotes
+                      options={LIP_TIP_STYLES.map((tip) => ({
+                        label: t(`binDesigner.base.lipTip.${tip}`),
+                        note: t(`binDesigner.base.lipTip.${tip}.hint`),
+                      }))}
+                    />
+                  }
+                >
+                  {t('binDesigner.base.lipTip')}
+                </FieldLabel>
+                <SegmentedControl
+                  options={LIP_TIP_STYLES.map((tip) => ({
+                    value: tip,
+                    label: t(`binDesigner.base.lipTip.${tip}`),
+                  }))}
+                  value={state.lipTip}
+                  onChange={handlers.setLipTip}
+                  aria-label={t('binDesigner.base.lipTip')}
+                  size="sm"
+                  fullWidth
+                />
+              </div>
+              <FeatureToggle
+                label={t('binDesigner.base.lipNotches')}
+                checked={!state.base.rimProfile && state.lipNotches}
+                onChange={handlers.toggleLipNotches}
+                info={t('binDesigner.base.lipNotchesDetail')}
+                disabledReason={
+                  state.base.rimProfile
+                    ? t('binDesigner.base.rimProfile.notches')
+                    : state.lipNotchBlocker === null || state.lipNotchBlocker === 'noLip'
+                      ? undefined
+                      : t(LIP_NOTCH_BLOCKED[state.lipNotchBlocker])
+                }
+              />
+            </>
+          }
+        />
         {!state.base.stackingLip && (
           <FeatureToggle
             label={t('binDesigner.base.rimFillet')}
@@ -233,49 +263,6 @@ export function BaseSection() {
                   unit="mm"
                 />
               </>
-            }
-          />
-        )}
-        {/* Only while there IS a lip. The finish is a property of its peak, and
-            offering it on a lipless bin would be a control with nothing to act
-            on. */}
-        {state.base.stackingLip && state.base.rimProfile !== 'thin' && (
-          <div className="space-y-1 pt-1">
-            <FieldLabel
-              info={
-                <OptionNotes
-                  options={LIP_TIP_STYLES.map((tip) => ({
-                    label: t(`binDesigner.base.lipTip.${tip}`),
-                    note: t(`binDesigner.base.lipTip.${tip}.hint`),
-                  }))}
-                />
-              }
-            >
-              {t('binDesigner.base.lipTip')}
-            </FieldLabel>
-            <SegmentedControl
-              options={LIP_TIP_STYLES.map((tip) => ({
-                value: tip,
-                label: t(`binDesigner.base.lipTip.${tip}`),
-              }))}
-              value={state.lipTip}
-              onChange={handlers.setLipTip}
-              aria-label={t('binDesigner.base.lipTip')}
-              size="sm"
-              fullWidth
-            />
-          </div>
-        )}
-        {state.base.stackingLip && state.base.rimProfile !== 'thin' && (
-          <FeatureToggle
-            label={t('binDesigner.base.lipNotches')}
-            checked={state.lipNotches}
-            onChange={handlers.toggleLipNotches}
-            info={t('binDesigner.base.lipNotchesDetail')}
-            disabledReason={
-              state.lipNotchBlocker === null || state.lipNotchBlocker === 'noLip'
-                ? undefined
-                : t(LIP_NOTCH_BLOCKED[state.lipNotchBlocker])
             }
           />
         )}

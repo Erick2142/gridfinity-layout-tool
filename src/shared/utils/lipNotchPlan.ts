@@ -52,9 +52,7 @@ export function lipNotchBlocker(params: LipNotchParams): LipNotchBlocker | null 
 
 export function resolveLipNotches(params: LipNotchParams): boolean {
   return (
-    params.base.rimProfile !== 'thin' &&
-    params.base.lipNotches === true &&
-    lipNotchBlocker(params) === null
+    !params.base.rimProfile && params.base.lipNotches === true && lipNotchBlocker(params) === null
   );
 }
 

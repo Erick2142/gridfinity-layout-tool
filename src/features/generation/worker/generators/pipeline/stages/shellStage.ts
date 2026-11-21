@@ -185,7 +185,7 @@ export const shellStage: PipelineStage = {
       // common case the integrated builder covers; everything else keeps the
       // exact-faithful fuse below. Draft-only: the export path is an exact kernel.
       const integratedLip =
-        params.base.rimProfile !== 'thin' &&
+        !params.base.rimProfile &&
         !activePullTab(params) &&
         dim.hasLip &&
         !dim.omitLipSolid &&
@@ -264,7 +264,8 @@ export const shellStage: PipelineStage = {
               dim.overhang,
               resolveLipTip(params.base),
               notchGrid,
-              params.base.rimProfile === 'thin'
+              params.base.rimProfile,
+              params.wallThickness
             )
           );
           // Seated ON the slab top: `buildTopShape` hangs its own material
@@ -334,7 +335,8 @@ export const shellStage: PipelineStage = {
                 dim.overhang,
                 resolveLipTip(params.base),
                 notchGrid,
-                params.base.rimProfile === 'thin'
+                params.base.rimProfile,
+                params.wallThickness
               )
             );
             const top = scope.register(translate(lipBase, [0, 0, boxWallHeight]));

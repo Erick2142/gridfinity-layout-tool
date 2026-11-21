@@ -71,7 +71,7 @@ describe('BaseSection', () => {
     const user = userEvent.setup();
     for (const [name, collar, lip] of [
       ['Thin', 2.45, true],
-      ['None (full height)', 6.85, false],
+      ['None (full height)', 2.45, true],
       ['Standard', 2, true],
     ] as const) {
       await user.click(
@@ -80,6 +80,30 @@ describe('BaseSection', () => {
       const { params } = useDesignerStore.getState();
       expect(params.extraWallHeightMm).toBeCloseTo(collar);
       expect(params.base.stackingLip).toBe(lip);
+    }
+  });
+
+  it('gates rim options with the master switch and notches with the profile', async () => {
+    useDesignerStore.setState({ params: { ...DEFAULT_BIN_PARAMS, width: 2, depth: 2 } });
+    const user = userEvent.setup();
+    render(<BaseSection />);
+    const master = screen.getByRole('switch', { name: 'Stacking lip' });
+    const notches = () => screen.getByRole('switch', { name: 'Lip notches' });
+    const peak = () => screen.getByRole('radiogroup', { name: 'Lip peak' });
+    await user.click(notches());
+    for (const name of ['Thin', 'None (full height)']) {
+      await user.click(
+        within(screen.getByRole('radiogroup', { name: 'Lip style' })).getByRole('radio', { name })
+      );
+      expect(notches()).toBeDisabled();
+      expect(notches()).not.toBeChecked();
+      expect(within(peak()).getByRole('radio', { name: 'Flat' })).toBeEnabled();
+    }
+    await user.click(master);
+    for (const name of ['Lip style', 'Lip peak', 'Lip notches']) {
+      expect(
+        screen.queryByRole(name === 'Lip notches' ? 'switch' : 'radiogroup', { name })
+      ).toBeNull();
     }
   });
 

@@ -455,7 +455,7 @@
   "binDesigner.base.rimProfile.standard": "Standard",
   "binDesigner.base.rimProfile.thin": "Mince",
   "binDesigner.base.rimProfile.none": "Aucun (pleine hauteur)",
-  "binDesigner.base.rimProfile.off": "Désactivé (court)",
+  "binDesigner.base.rimProfile.notches": "Nécessite le profil de rebord standard.",
   "binDesigner.base.lipTip": "Pointe de la lèvre",
   "binDesigner.base.lipTip.sharp": "Vive",
   "binDesigner.base.lipTip.round": "Arrondie",

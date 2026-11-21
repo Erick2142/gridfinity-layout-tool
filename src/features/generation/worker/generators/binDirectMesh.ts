@@ -384,7 +384,7 @@ export function canBinUseDirectMesh(params: BinParams): boolean {
   // The procedural lip is one ring; it has no notches to emit.
   if (resolveLipNotches(params)) return false;
   const { base } = params;
-  if (base.rimProfile === 'thin') return false;
+  if (base.rimProfile) return false;
   if (base.rimFillet && !base.stackingLip) return false;
 
   // Base style: magnet/screw/magnet_and_screw share the same body + feet as

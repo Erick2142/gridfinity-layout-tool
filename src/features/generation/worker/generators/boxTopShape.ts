@@ -560,7 +560,8 @@ export function buildTopShape(
   overhang?: ResolvedOverhang,
   lipTip: LipTipStyle = DEFAULT_LIP_TIP,
   notches?: LipNotchGrid,
-  thin = false
+  profile?: 'thin' | 'none',
+  wallThickness = 1.2
 ): Shape3D {
   const polygon = isPartialMask(cellMask);
   // Overhang is suppressed for polygon masks (the mask defines the footprint).
@@ -571,7 +572,7 @@ export function buildTopShape(
   // nor an overhung rim follows; `resolveLipNotches` keeps both off it.
   const notchGrid = notches && !polygon && !exp ? notches : undefined;
   const lipKey = buildCacheKey(
-    thin ? 'thin-v1' : 'v5',
+    profile ? profile + ':' + wallThickness : 'v5',
     quantize(gridW),
     quantize(gridD),
     quantize(pitch.x),
@@ -594,17 +595,23 @@ export function buildTopShape(
   const offX = exp?.offsetX ?? 0;
   const offY = exp?.offsetY ?? 0;
 
-  if (thin) {
+  if (profile) {
     // Measured straight-wall section of the 1x1x3 reference. Each row is
     // [height above collar, inward offset from the bin's outside face].
-    const sections = [
-      [-LIP_OVERLAP, 1.2],
-      [0.045, 1.2],
-      [0.795, 1.95],
-      [2.595, 1.95],
-      [4.305, 0.24],
-      [LIP_HEIGHT, 0.1],
-    ] as const;
+    const sections: ReadonlyArray<readonly [number, number]> =
+      profile === 'none'
+        ? [
+            [-LIP_OVERLAP, wallThickness],
+            [LIP_HEIGHT, wallThickness],
+          ]
+        : ([
+            [-LIP_OVERLAP, 1.2],
+            [0.045, 1.2],
+            [0.795, 1.95],
+            [2.595, 1.95],
+            [4.305, 0.24],
+            [LIP_HEIGHT, 0.1],
+          ] as const);
     const outline = (inset: number) => {
       if (polygon)
         return inset
@@ -615,24 +622,54 @@ export function buildTopShape(
     };
     const loft = (profiles: Sketch[]) => profiles[0].loftWith(profiles.slice(1), { ruled: true });
     const ring = withScope((scope: DisposalScope) => {
-      const tube = (drawing: Drawing) =>
-        scope.register(
-          loft([-LIP_OVERLAP, LIP_HEIGHT].map((z) => drawing.sketchOnPlane('XY', z) as Sketch))
-        );
-      const inner = scope.register(
-        loft(sections.map(([z, inset]) => outline(inset).sketchOnPlane('XY', z) as Sketch))
+      // Build the outside edge treatment into the loft; both geometry kernels
+      // then get the same bevel even on the thin profile's 0.1 mm crown.
+      const peak =
+        LIP_HEIGHT -
+        (lipTip === 'flat'
+          ? LIP_TIP_FLAT_MM
+          : lipTip !== 'sharp' && profile === 'thin'
+            ? LIP_TIP_MM
+            : 0);
+      const radius = Math.min(LIP_TIP_MM, wallThickness / 2);
+      const outer: Array<readonly [number, number]> = [[-LIP_OVERLAP, 0]];
+      if (lipTip === 'round' || lipTip === 'chamfer') {
+        const steps = lipTip === 'round' ? 8 : 1;
+        for (let step = 0; step <= steps; step++) {
+          const angle = (Math.PI * step) / (2 * steps);
+          outer.push([peak - radius + radius * Math.sin(angle), radius * (1 - Math.cos(angle))]);
+        }
+      } else outer.push([peak, 0]);
+      const outerSolid = scope.register(
+        loft(outer.map(([z, inset]) => outline(inset).sketchOnPlane('XY', z) as Sketch))
       );
-      let solid = unwrap(cut(tube(outline(0)), inner));
+      // End both sides at the same plane, including rings around footprint holes.
+      const topIndex = sections.findIndex(([z]) => z >= peak);
+      const [z0, inset0] = sections[topIndex - 1];
+      const [z1, inset1] = sections[topIndex];
+      const innerRows = sections
+        .slice(0, topIndex)
+        .concat([[peak, inset0 + ((inset1 - inset0) * (peak - z0)) / (z1 - z0)]]);
+      const inner = scope.register(
+        loft(innerRows.map(([z, inset]) => outline(inset).sketchOnPlane('XY', z) as Sketch))
+      );
+      let solid = unwrap(cut(outerSolid, inner));
       if (polygon) {
         const holes = buildMaskHoleDrawings(cellMask, gridUnitMm);
-        const rings = sections.map(([z, inset]) =>
+        const rings = innerRows.map(([z, inset]) =>
           buildMaskHoleDrawings(cellMask, gridUnitMm, CLEARANCE / 2 + inset).map(
             (d) => d.sketchOnPlane('XY', z) as Sketch
           )
         );
-        holes.forEach((hole, index) => {
+        const cavitySections = outer.map(([z, inset]) =>
+          buildMaskHoleDrawings(cellMask, gridUnitMm, CLEARANCE / 2 + inset).map(
+            (d) => d.sketchOnPlane('XY', z) as Sketch
+          )
+        );
+        holes.forEach((_, index) => {
           const outside = scope.register(loft(rings.map((row) => row[index])));
-          const rim = scope.register(unwrap(cut(outside, tube(hole))));
+          const cavity = scope.register(loft(cavitySections.map((row) => row[index])));
+          const rim = scope.register(unwrap(cut(outside, cavity)));
           solid = unwrap(fuse(scope.register(solid), rim));
         });
       }

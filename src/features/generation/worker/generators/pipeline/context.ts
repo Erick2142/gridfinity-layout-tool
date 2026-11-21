@@ -467,7 +467,7 @@ export function deriveDimensions(
       // bin switched from sharp to round reuses the sharp body and the setting
       // does nothing at all from the second render on. Appended only when
       // non-sharp, so every existing v7 key stays byte-identical.
-      ...(params.base.rimProfile === 'thin' ? ['thin'] : []),
+      ...(params.base.rimProfile ? [params.base.rimProfile, params.wallThickness] : []),
       ...(lipTip !== 'sharp' ? [`liptip${lipTip}`] : []),
       // Cut into the lip before it is fused, like the tip above.
       ...(lipNotches ? ['lipnotch'] : []),

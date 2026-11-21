@@ -166,6 +166,14 @@ type MigrateParamsInput = Omit<Partial<BinParams>, 'wallPattern' | 'featureColor
  * @returns A complete `BinParams` object with unspecified fields taken from `DEFAULT_BIN_PARAMS`.
  */
 export function migrateParams(params: MigrateParamsInput): BinParams {
+  // Earlier full-height plain rims were stored as a 4.85 mm collar with the lip off.
+  if (params.base?.rimProfile === 'none' && !params.base.stackingLip) {
+    params = {
+      ...params,
+      base: { ...params.base, stackingLip: true },
+      extraWallHeightMm: Math.max(0, (params.extraWallHeightMm ?? 4.85) - 4.4),
+    };
+  }
   // Migrate old boolean scoop format to ScoopConfig
   let scoopConfig = DEFAULT_BIN_PARAMS.scoop;
   if (params.scoop !== undefined) {
