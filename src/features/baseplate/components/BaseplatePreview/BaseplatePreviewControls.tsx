@@ -238,7 +238,7 @@ export function BaseplatePreviewControls({
 
   // Mobile: two separate rows when split, single row otherwise
   return (
-    <div className="absolute inset-x-2 top-2 z-30 md:hidden flex flex-wrap gap-2">
+    <div className="absolute inset-x-2 top-2 z-30 flex flex-wrap gap-2">
       {/* Assembled / Exploded toggle -- separate pill (only when split) */}
       {isSplit && (
         <div className="flex items-center rounded-lg bg-surface-elevated/80 shadow-sm backdrop-blur overflow-hidden">
@@ -358,7 +358,7 @@ export function BaseplatePreviewControls({
 
       {/* Mobile color picker -- bottom sheet style overlay */}
       {colorPickerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50">
           {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative backdrop, keyboard users dismiss via Escape */}
           <div className="absolute inset-0 bg-black/40" onClick={() => setColorPickerOpen(false)} />
           <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-surface-elevated p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-xl">

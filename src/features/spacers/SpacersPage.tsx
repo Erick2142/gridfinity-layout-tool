@@ -1,4 +1,6 @@
-import { Button } from '@/design-system';
+import { FeatureToggle } from '@/shared/components/FeatureToggle';
+import { HeaderSupportLinks } from '@/shared/components/HeaderSupportLinks';
+import { Button, Stepper } from '@/design-system';
 import { SpacerPreview } from './SpacerPreview';
 import { useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n';
@@ -60,7 +62,7 @@ function SideSection({ width, lift, feet }: Spacer) {
 
 export default function SpacersPage() {
   const t = useTranslation();
-  const { isMobile } = useResponsive();
+  const { isMobile, isDesktop } = useResponsive();
   const [width, setWidth] = useState('1'),
     [depth, setDepth] = useState('1');
   const [custom, setCustom] = useState(false),
@@ -92,10 +94,34 @@ export default function SpacersPage() {
   return (
     <div className="flex h-dvh flex-col bg-surface text-content">
       <header className="h-12 shrink-0 flex items-center justify-between px-4 bg-surface-secondary border-b border-stroke-subtle">
-        <ToolSwitcher compact={isMobile} iconOnly={isMobile} />
-        <Button variant="secondary" disabled={!valid} onClick={download}>
-          {t('spacers.download')}
-        </Button>
+        <div className="flex min-w-0 items-center gap-2">
+          <ToolSwitcher compact={isMobile} iconOnly={!isDesktop} labelsFromXl />
+          <Button
+            variant="ghost"
+            aria-label={t('spacers.download')}
+            disabled={!valid}
+            onClick={download}
+          >
+            <svg
+              className="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 16v3h16v-3M12 3v12m-5-5 5 5 5-5"
+              />
+            </svg>
+            <span className="hidden lg:inline">{t('spacers.download')}</span>
+          </Button>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <HeaderSupportLinks compact={!isDesktop} />
+        </div>
       </header>
       <div className="flex flex-1 min-h-0 max-md:flex-col">
         <aside className="w-72 shrink-0 overflow-y-auto border-r border-stroke-subtle bg-surface-secondary max-md:order-2 max-md:w-full max-md:flex-1">
@@ -103,48 +129,63 @@ export default function SpacersPage() {
             {t('spacers.title')}
           </h2>
           <div className="p-4 space-y-4 text-sm">
-            {(
-              [
-                [width, setWidth, 'spacers.width'],
-                [depth, setDepth, 'spacers.depth'],
-              ] as const
-            ).map(([value, set, key]) => (
-              <label key={key} className="block">
-                {t(key)}
-                <input
-                  className={inputClass}
-                  type="number"
-                  min={1}
-                  max={16}
-                  step={1}
-                  value={value}
-                  onChange={(e) => set(e.target.value)}
-                />
-              </label>
-            ))}
-            <label className="block">
-              {t(custom ? 'spacers.mm' : 'spacers.units')}
-              <input
-                className={inputClass}
-                type="number"
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  [width, setWidth, 'spacers.width'],
+                  [depth, setDepth, 'spacers.depth'],
+                ] as const
+              ).map(([value, set, key]) => (
+                <div key={key} className="min-w-0">
+                  <span className="text-xs text-content-tertiary">{t(key)}</span>
+                  <Stepper
+                    fullWidth
+                    aria-label={t(key)}
+                    value={Number(value)}
+                    min={1}
+                    max={16}
+                    onChange={(n) => set(String(Math.round(n)))}
+                    onStep={(delta) =>
+                      set(String(Math.max(1, Math.min(16, Number(value) + delta))))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+            <FeatureToggle
+              label={t('spacers.custom')}
+              checked={custom}
+              onChange={() => {
+                setHeight(String(custom ? Math.ceil(spacer.lift / HEIGHT_UNIT) : spacer.lift));
+                setCustom(!custom);
+              }}
+            />
+            <div>
+              <span className="text-xs text-content-tertiary">
+                {t(custom ? 'spacers.mm' : 'spacers.units')}
+              </span>
+              <Stepper
+                key={String(custom)}
+                fullWidth
+                aria-label={t(custom ? 'spacers.mm' : 'spacers.units')}
+                value={Number(height)}
                 min={custom ? HEIGHT_UNIT : 1}
-                step={custom ? 'any' : 1}
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
+                max={Number.MAX_SAFE_INTEGER}
+                inputDecimals={custom ? 6 : 0}
+                step={custom ? 0.1 : 1}
+                onChange={(n) => setHeight(String(custom ? n : Math.round(n)))}
+                onStep={(delta) =>
+                  setHeight(
+                    String(
+                      Math.max(
+                        custom ? HEIGHT_UNIT : 1,
+                        Number((Number(height) + delta * (custom ? 0.1 : 1)).toFixed(6))
+                      )
+                    )
+                  )
+                }
               />
-            </label>
-            <label className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={custom}
-                onChange={(e) => {
-                  const lift = Math.max(HEIGHT_UNIT, spacer.lift || HEIGHT_UNIT);
-                  setHeight(String(e.target.checked ? lift : Math.ceil(lift / HEIGHT_UNIT)));
-                  setCustom(e.target.checked);
-                }}
-              />
-              {t('spacers.custom')}
-            </label>
+            </div>
             <label className="block">
               {t('spacers.underside')}
               <select
