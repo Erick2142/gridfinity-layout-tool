@@ -517,6 +517,10 @@
       "destination": "/"
     },
     {
+      "source": "/spacers",
+      "destination": "/"
+    },
+    {
       "source": "/baseplate",
       "destination": "/"
     },

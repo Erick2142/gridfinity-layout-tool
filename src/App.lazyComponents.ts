@@ -66,6 +66,7 @@ export const DesignGalleryModal = lazyWithRetry(() =>
 export const LabelsDialog = lazyWithRetry(() =>
   import('@/features/labels/components/LabelsDialog').then(namedExport('LabelsDialog'))
 );
+export const SpacersPage = lazyWithRetry(() => import('@/features/spacers/SpacersPage'));
 export const LabelsPage = lazyWithRetry(() =>
   import('@/features/labels/components/LabelsPage').then(namedExport('LabelsPage'))
 );

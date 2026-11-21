@@ -1,15 +1,6 @@
-/**
- * Segmented control for switching between Layout, Bins and Baseplate.
- *
- * Three editors of one drawer, which is what the grouping means. Destinations
- * that are not editors do not belong here: a fourth segment made the control
- * wide enough to truncate the design name beside it, and spent the header's
- * best space on its least frequent action. /community reaches the app through
- * this same switcher with no segment active, since you are not in an editor.
- */
-
 import { Button } from '@/design-system';
-import { useDesignerRouting } from '@/shared/hooks/useDesignerRouting';
+import { useSpacersRouting } from '@/shared/hooks/useSpacersRouting';
+import { dispatchSyntheticPopstate, useDesignerRouting } from '@/shared/hooks/useDesignerRouting';
 import { useBaseplateRouting } from '@/shared/hooks/useBaseplateRouting';
 import { useCommunityRouting } from '@/shared/hooks/useCommunityRouting';
 import { useLabelsRouting } from '@/shared/hooks/useLabelsRouting';
@@ -31,15 +22,20 @@ interface ToolSwitcherProps {
   labelsFromXl?: boolean;
 }
 
-type Tool = 'planner' | 'designer' | 'baseplate';
+type Tool = 'planner' | 'designer' | 'baseplate' | 'spacers';
 
 interface ToolConfig {
   id: Tool;
-  labelKey: 'toolSwitcher.layout' | 'toolSwitcher.binDesigner' | 'toolSwitcher.baseplateGenerator';
+  labelKey:
+    | 'toolSwitcher.layout'
+    | 'toolSwitcher.binDesigner'
+    | 'toolSwitcher.baseplateGenerator'
+    | 'spacers.title';
   switchKey:
     | 'toolSwitcher.switchToPlanner'
     | 'toolSwitcher.switchToDesigner'
-    | 'toolSwitcher.switchToBaseplate';
+    | 'toolSwitcher.switchToBaseplate'
+    | 'spacers.title';
   iconPaths: readonly string[];
 }
 
@@ -61,6 +57,12 @@ const TOOLS: ToolConfig[] = [
     labelKey: 'toolSwitcher.baseplateGenerator',
     switchKey: 'toolSwitcher.switchToBaseplate',
     iconPaths: ICON_PATHS.baseplate,
+  },
+  {
+    id: 'spacers',
+    labelKey: 'spacers.title',
+    switchKey: 'spacers.title',
+    iconPaths: ICON_PATHS.layers,
   },
 ];
 
@@ -86,6 +88,7 @@ export function ToolSwitcher({
   const { isDesignerRoute, navigateToDesigner, navigateToPlanner } = useDesignerRouting();
   const { isBaseplateRoute, navigateToBaseplate } = useBaseplateRouting();
   const { isCommunityRoute } = useCommunityRouting();
+  const { isSpacersRoute } = useSpacersRouting();
   const { isLabelsRoute } = useLabelsRouting();
 
   // Null on /community and /labels: you are not in an editor, and highlighting
@@ -94,15 +97,20 @@ export function ToolSwitcher({
   const activeTool: Tool | null =
     isCommunityRoute || isLabelsRoute
       ? null
-      : isBaseplateRoute
-        ? 'baseplate'
-        : isDesignerRoute
-          ? 'designer'
-          : 'planner';
+      : isSpacersRoute
+        ? 'spacers'
+        : isBaseplateRoute
+          ? 'baseplate'
+          : isDesignerRoute
+            ? 'designer'
+            : 'planner';
 
   const handleSwitch = (tool: Tool) => {
     if (tool === activeTool) return;
-    if (tool === 'designer') {
+    if (tool === 'spacers') {
+      window.history.pushState(null, '', '/spacers');
+      dispatchSyntheticPopstate();
+    } else if (tool === 'designer') {
       navigateToDesigner();
     } else if (tool === 'baseplate') {
       navigateToBaseplate();

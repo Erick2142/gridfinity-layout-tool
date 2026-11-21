@@ -49,6 +49,7 @@ import {
   DesignGalleryModal,
   LabelsDialog,
   LabelsPage,
+  SpacersPage,
   CommunityPublishDialog,
 } from './App.lazyComponents';
 import { routeTitleKey, useRouteMeta } from '@/shared/hooks/useRouteMeta';
@@ -78,6 +79,7 @@ import { useThemeEffect } from '@/shared/hooks/useThemeEffect';
 import { useDesignerRouting } from '@/shared/hooks/useDesignerRouting';
 import { useBaseplateRouting } from '@/shared/hooks/useBaseplateRouting';
 import { useSupportersRouting } from '@/shared/hooks/useSupportersRouting';
+import { useSpacersRouting } from '@/shared/hooks/useSpacersRouting';
 import { useLabelsRouting } from '@/shared/hooks/useLabelsRouting';
 import { useCommunityRouting } from '@/shared/hooks/useCommunityRouting';
 import {
@@ -106,6 +108,7 @@ export default function App() {
   const { isBaseplateRoute } = useBaseplateRouting();
   const { isSupportersRoute, navigateToSupporters } = useSupportersRouting();
   const { isCommunityRoute, communityDesignIdFromUrl } = useCommunityRouting();
+  const { isSpacersRoute } = useSpacersRouting();
   const { isLabelsRoute } = useLabelsRouting();
   // Dev-only thumbnail capture route. Suppresses layout/designer routing so
   // those hooks don't rewrite the URL and strip the query params we depend on.
@@ -119,6 +122,7 @@ export default function App() {
     isBaseplateRoute ||
     isSupportersRoute ||
     isCommunityRoute ||
+    isSpacersRoute ||
     isLabelsRoute ||
     isDevThumbnailRoute;
   const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } = useCommandPalette({
@@ -135,6 +139,7 @@ export default function App() {
     isBaseplateRoute,
     isSupportersRoute,
     isCommunityRoute,
+    isSpacersRoute,
     isLabelsRoute,
   };
   useRouteMeta({ ...routeFlags, communityDesignIdFromUrl });
@@ -295,11 +300,13 @@ export default function App() {
       ? { Page: DesignerPage, loading: t('loading.designer') }
       : isBaseplateRoute
         ? { Page: BaseplatePage, loading: t('loading.baseplate') }
-        : isLabelsRoute
-          ? { Page: LabelsPage, loading: t('loading.labels') }
-          : isSupportersRoute
-            ? { Page: SupportersPage, loading: t('loading.supporters') }
-            : null;
+        : isSpacersRoute
+          ? { Page: SpacersPage, loading: t('spacers.title') }
+          : isLabelsRoute
+            ? { Page: LabelsPage, loading: t('loading.labels') }
+            : isSupportersRoute
+              ? { Page: SupportersPage, loading: t('loading.supporters') }
+              : null;
     if (page) {
       return (
         <Suspense fallback={<LoadingFallback label={page.loading} />}>

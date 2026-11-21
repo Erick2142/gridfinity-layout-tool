@@ -59,7 +59,7 @@ describe('ToolSwitcher', () => {
   it('shows tablist', () => {
     render(<ToolSwitcher />);
     expect(screen.getByRole('tablist')).toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
   });
 
   it('has planner tab selected by default', () => {
@@ -194,10 +194,10 @@ describe('ToolSwitcher', () => {
   });
 
   describe('on the community route', () => {
-    it('holds only the three editors', () => {
+    it('holds only the four editors', () => {
       mockIsCommunityRoute = true;
       render(<ToolSwitcher />);
-      expect(screen.getAllByRole('tab')).toHaveLength(3);
+      expect(screen.getAllByRole('tab')).toHaveLength(4);
     });
 
     it('marks nothing active, since no editor is open', () => {

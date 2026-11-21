@@ -6,6 +6,7 @@ export interface RouteMetaFlags {
   readonly isBaseplateRoute: boolean;
   readonly isSupportersRoute: boolean;
   readonly isCommunityRoute: boolean;
+  readonly isSpacersRoute?: boolean;
   readonly isLabelsRoute: boolean;
   readonly communityDesignIdFromUrl: string | null;
 }
@@ -27,6 +28,7 @@ export function routeTitleKey(
   if (flags.isBaseplateRoute) return 'seo.baseplate.title';
   if (flags.isSupportersRoute) return 'seo.supporters.title';
   if (flags.isCommunityRoute) return 'seo.community.title';
+  if (flags.isSpacersRoute) return 'spacers.title';
   if (flags.isLabelsRoute) return 'seo.labels.title';
   return null;
 }
@@ -38,6 +40,7 @@ export function useRouteMeta(flags: RouteMetaFlags): void {
     isBaseplateRoute,
     isSupportersRoute,
     isCommunityRoute,
+    isSpacersRoute = false,
     isLabelsRoute,
     communityDesignIdFromUrl,
   } = flags;
@@ -54,6 +57,7 @@ export function useRouteMeta(flags: RouteMetaFlags): void {
         isBaseplateRoute,
         isSupportersRoute,
         isCommunityRoute,
+        isSpacersRoute,
         isLabelsRoute,
       }) ?? 'seo.title';
     const descKey = isDesignerRoute
@@ -80,6 +84,7 @@ export function useRouteMeta(flags: RouteMetaFlags): void {
     isBaseplateRoute,
     isSupportersRoute,
     isCommunityRoute,
+    isSpacersRoute,
     isLabelsRoute,
     communityDesignIdFromUrl,
     t,
